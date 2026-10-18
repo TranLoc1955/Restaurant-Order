@@ -1,0 +1,6 @@
+.env
+/storage/logs/*.log
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+.vscode/
+*.tmp
