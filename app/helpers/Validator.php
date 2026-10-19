@@ -46,7 +46,7 @@ class Validator {
     public function phone(string $field, string $fieldName = 'Số điện thoại'): self {
         if (!empty($this->data[$field])) {
             $phone = trim($this->data[$field]);
-            if (!preg_match('/^(0[3|5|7|8|9])[0-9]{8}$/', $phone)) {
+            if (!preg_match('/^(0[35789])[0-9]{8}$/', $phone)) {
                 $this->errors[$field] = "{$fieldName} phải là 10 chữ số hợp lệ của Việt Nam (bắt đầu bằng 03, 05, 07, 08, 09).";
             }
         }

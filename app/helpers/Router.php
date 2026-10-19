@@ -96,10 +96,12 @@ class Router {
                     }
                 }
 
-                // Chạy Handler
+                // Chạy Handler với tham số vị trí (chống lỗi Unknown named parameter trong PHP 8+)
                 $handler = $route['handler'];
+                $paramValues = array_values($params);
+
                 if (is_callable($handler)) {
-                    call_user_func_array($handler, $params);
+                    call_user_func_array($handler, $paramValues);
                     return;
                 }
 
@@ -112,7 +114,7 @@ class Router {
                     if (!method_exists($controller, $method)) {
                         Response::abort(500, "Không tìm thấy phương thức: {$method} trong controller {$class}");
                     }
-                    call_user_func_array([$controller, $method], $params);
+                    call_user_func_array([$controller, $method], $paramValues);
                     return;
                 }
             }

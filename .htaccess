@@ -1,0 +1,13 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Chặn truy cập trực tiếp vào các tệp bảo mật
+    <FilesMatch "^\.env|\.sql$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+
+    # Điều hướng tự động tất cả truy cập vào thư mục public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+</IfModule>

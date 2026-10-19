@@ -17,6 +17,11 @@ class AuthMiddleware {
                 ], 401);
             }
 
+            // Lưu URL mục tiêu nếu là GET request để quay lại sau khi đăng nhập
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+                Session::set('redirect_after_login', Router::resolveUri());
+            }
+
             Session::flash('error', 'Vui lòng đăng nhập để tiếp tục.');
             Response::redirect('login');
             return null;

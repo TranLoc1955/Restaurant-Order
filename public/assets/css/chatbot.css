@@ -223,11 +223,15 @@
 .chatbot-input {
     flex: 1;
     border: 1.5px solid var(--border-color);
-    border-radius: var(--radius-full);
-    padding: 0.5rem 1rem;
+    border-radius: var(--radius-lg);
+    padding: 0.5rem 0.875rem;
     font-size: 0.875rem;
     outline: none;
     font-family: inherit;
+    resize: none;
+    min-height: 38px;
+    max-height: 90px;
+    line-height: 1.4;
     transition: border-color var(--transition-fast);
 }
 
@@ -246,11 +250,67 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color var(--transition-fast);
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .chatbot-send-btn:hover {
     background: var(--primary-hover);
+    transform: scale(1.05);
+}
+
+.chatbot-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Badges phân biệt AI thật vs Demo vs Lỗi */
+.chat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+.chat-badge-ai {
+    background: #ede9fe;
+    color: #5b21b6;
+    border: 1px solid #ddd6fe;
+}
+.chat-badge-demo {
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+}
+.chat-badge-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+/* Nút thử lại (Retry) khi gặp lỗi kết nối */
+.chatbot-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    color: var(--danger-color);
+    border: 1px solid var(--danger-color);
+    border-radius: var(--radius-full);
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: all var(--transition-fast);
+}
+.chatbot-retry-btn:hover {
+    background: var(--danger-color);
+    color: #ffffff;
 }
 
 /* Typing Dots Animation */

@@ -208,10 +208,13 @@
                 <div class="chatbot-avatar">🍲</div>
                 <div class="chatbot-info">
                     <h4>Trợ Lý Món Ngon</h4>
-                    <span>Trần Lộc AI Assistant</span>
+                    <span id="chatbot-status-subtitle">Trần Lộc AI Assistant</span>
                 </div>
             </div>
-            <button type="button" class="chatbot-close-btn" onclick="Chatbot.close()" aria-label="Đóng">&times;</button>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <button type="button" class="chatbot-icon-btn" onclick="Chatbot.clear()" title="Bắt đầu hội thoại mới" style="background:none; border:none; color:#ffffff; cursor:pointer; font-size:1rem; opacity:0.85; padding:4px;" aria-label="Làm mới hội thoại">🔄</button>
+                <button type="button" class="chatbot-close-btn" onclick="Chatbot.close()" aria-label="Đóng">&times;</button>
+            </div>
         </div>
 
         <div class="chatbot-body" id="chatbot-body">
@@ -228,21 +231,21 @@
             <button type="button" class="chatbot-chip" onclick="Chatbot.askPrompt('Có món nào dưới 50k không?')">
                 💰 Dưới 50.000đ
             </button>
+            <button type="button" class="chatbot-chip" onclick="Chatbot.askPrompt('Nhà mình có 4 người thì nên gọi món gì?')">
+                👨‍👩‍👧‍👦 Tư vấn cho 4 người
+            </button>
             <button type="button" class="chatbot-chip" onclick="Chatbot.askPrompt('Gợi ý cho tôi món ăn trưa ngon')">
                 🍱 Gợi ý món ăn trưa
             </button>
             <button type="button" class="chatbot-chip" onclick="Chatbot.askPrompt('Nhà hàng mở cửa mấy giờ và phí ship thế nào?')">
                 ⏰ Giờ mở cửa & Phí ship
             </button>
-            <button type="button" class="chatbot-chip" onclick="Chatbot.askPrompt('Làm sao để đặt hàng và thanh toán?')">
-                🛵 Hướng dẫn đặt món
-            </button>
         </div>
 
         <!-- Khung nhập tin nhắn -->
         <div class="chatbot-footer">
-            <input type="text" id="chatbot-input" class="chatbot-input" placeholder="Hỏi Trợ lý AI về món ăn..." maxlength="500">
-            <button type="button" class="chatbot-send-btn" onclick="Chatbot.send()" aria-label="Gửi tin nhắn">
+            <textarea id="chatbot-input" class="chatbot-input" placeholder="Hỏi Trợ lý AI về món ăn, ngân sách, số người..." rows="1" maxlength="500"></textarea>
+            <button type="button" class="chatbot-send-btn" id="chatbot-send-btn" onclick="Chatbot.send()" aria-label="Gửi tin nhắn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>

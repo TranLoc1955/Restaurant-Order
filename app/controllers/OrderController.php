@@ -108,9 +108,9 @@ class OrderController {
     /**
      * Trang xác nhận đặt hàng thành công
      */
-    public function success(string $orderCode): void {
+    public function success(string $code): void {
         $user = AuthMiddleware::requireLogin();
-        $order = $this->orderModel->findByCode($orderCode);
+        $order = $this->orderModel->findByCode($code);
 
         if (!$order) {
             Response::abort(404, 'Không tìm thấy thông tin đơn hàng.');
@@ -149,9 +149,9 @@ class OrderController {
     /**
      * Xem chi tiết một đơn hàng cụ thể
      */
-    public function detail(string $orderCode): void {
+    public function detail(string $code): void {
         $user = AuthMiddleware::requireLogin();
-        $order = $this->orderModel->findByCode($orderCode);
+        $order = $this->orderModel->findByCode($code);
 
         if (!$order) {
             Response::abort(404, 'Không tìm thấy thông tin đơn hàng.');
@@ -179,19 +179,19 @@ class OrderController {
     /**
      * Khách hàng tự hủy đơn hàng khi đơn còn ở PENDING
      */
-    public function cancel(string $orderCode): void {
+    public function cancel(string $code): void {
         $user = AuthMiddleware::requireLogin();
         CsrfMiddleware::handle();
 
         $reason = trim($_POST['cancel_reason'] ?? 'Khách hàng đổi ý');
 
         try {
-            $this->orderModel->cancelByCustomer($orderCode, (int)$user['id'], $reason);
-            Session::flash('success', "Đã hủy đơn hàng {$orderCode} thành công.");
+            $this->orderModel->cancelByCustomer($code, (int)$user['id'], $reason);
+            Session::flash('success', "Đã hủy đơn hàng {$code} thành công.");
         } catch (Throwable $e) {
             Session::flash('error', $e->getMessage());
         }
 
-        Response::redirect('orders/' . $orderCode);
+        Response::redirect('orders/' . $code);
     }
 }

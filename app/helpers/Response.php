@@ -16,8 +16,17 @@ class Response {
             if (!empty($config['base_url'])) {
                 self::$baseUrl = rtrim($config['base_url'], '/');
             } else {
-                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $hostName = strtolower(explode(':', $host)[0]);
+                $isLocal = in_array($hostName, ['localhost', '127.0.0.1', '::1', '0.0.0.0']);
+
+                $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+                    || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower($_SERVER['HTTP_X_FORWARDED_SSL']) === 'on')
+                    || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+                    || !$isLocal;
+
+                $protocol = $isHttps ? 'https://' : 'http://';
                 $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
                 $baseDir = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
                 self::$baseUrl = rtrim($protocol . $host . $baseDir, '/');
