@@ -14,6 +14,9 @@ USE `restaurant_ordering_db`;
 -- Vô hiệu hóa kiểm tra khóa ngoại tạm thời để thực hiện drop bảng an toàn
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `point_transactions`;
+DROP TABLE IF EXISTS `voucher_usages`;
+DROP TABLE IF EXISTS `vouchers`;
 DROP TABLE IF EXISTS `chatbot_logs`;
 DROP TABLE IF EXISTS `order_status_history`;
 DROP TABLE IF EXISTS `order_items`;
@@ -49,6 +52,7 @@ CREATE TABLE `users` (
     `phone` VARCHAR(20) NOT NULL,
     `password_hash` VARCHAR(255) NOT NULL,
     `role` ENUM('customer', 'staff', 'admin') NOT NULL DEFAULT 'customer',
+    `reward_points` INT UNSIGNED NOT NULL DEFAULT 0,
     `status` ENUM('active', 'locked') NOT NULL DEFAULT 'active',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -104,8 +108,13 @@ CREATE TABLE `orders` (
     `subtotal` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     `shipping_fee` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     `total_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-    `payment_method` ENUM('COD') NOT NULL DEFAULT 'COD',
+    `payment_method` ENUM('COD', 'BANK_TRANSFER') NOT NULL DEFAULT 'COD',
     `payment_status` ENUM('unpaid', 'paid') NOT NULL DEFAULT 'unpaid',
+    `voucher_code` VARCHAR(32) NULL,
+    `discount_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `points_used` INT UNSIGNED NOT NULL DEFAULT 0,
+    `points_discount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `points_earned` INT UNSIGNED NOT NULL DEFAULT 0,
     `order_status` ENUM('PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
     `rejection_reason` VARCHAR(255) NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -175,4 +184,73 @@ CREATE TABLE `chatbot_logs` (
         ON DELETE SET NULL ON UPDATE CASCADE,
     INDEX `idx_chatbot_session` (`session_id`),
     INDEX `idx_chatbot_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------------
+-- 9. BẢNG vouchers (Mã giảm giá & Chương trình khuyến mãi)
+-- --------------------------------------------------------------------
+CREATE TABLE `vouchers` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(32) NOT NULL UNIQUE,
+    `title` VARCHAR(150) NOT NULL,
+    `description` TEXT NULL,
+    `discount_type` ENUM('FIXED', 'PERCENT') NOT NULL DEFAULT 'FIXED',
+    `discount_value` DECIMAL(12, 2) NOT NULL,
+    `max_discount_amount` DECIMAL(12, 2) NULL,
+    `min_order_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `usage_limit` INT UNSIGNED NULL,
+    `used_count` INT UNSIGNED NOT NULL DEFAULT 0,
+    `usage_limit_per_user` INT UNSIGNED NOT NULL DEFAULT 1,
+    `customer_condition` ENUM('ALL', 'RETURNING_ONLY', 'NEW_ONLY') NOT NULL DEFAULT 'ALL',
+    `start_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `end_date` DATETIME NULL,
+    `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_vouchers_code` (`code`),
+    INDEX `idx_vouchers_status` (`status`),
+    INDEX `idx_vouchers_condition` (`customer_condition`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------------
+-- 10. BẢNG voucher_usages (Lịch sử sử dụng voucher của khách hàng)
+-- --------------------------------------------------------------------
+CREATE TABLE `voucher_usages` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `voucher_id` INT UNSIGNED NOT NULL,
+    `order_id` INT UNSIGNED NOT NULL,
+    `user_id` INT UNSIGNED NOT NULL,
+    `discount_amount` DECIMAL(12, 2) NOT NULL,
+    `used_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_voucher_usages_voucher` 
+        FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_voucher_usages_order` 
+        FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_voucher_usages_user` 
+        FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX `idx_usages_user_voucher` (`user_id`, `voucher_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------------
+-- 11. BẢNG point_transactions (Nhật ký tích điểm & đổi điểm thưởng)
+-- --------------------------------------------------------------------
+CREATE TABLE `point_transactions` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` INT UNSIGNED NOT NULL,
+    `order_id` INT UNSIGNED NULL,
+    `points` INT NOT NULL,
+    `type` ENUM('EARN', 'REDEEM', 'REFUND', 'BONUS') NOT NULL,
+    `description` VARCHAR(255) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_point_trans_user` 
+        FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_point_trans_order` 
+        FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) 
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_point_user` (`user_id`),
+    INDEX `idx_point_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

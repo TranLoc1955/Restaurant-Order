@@ -59,8 +59,8 @@
                     <th>Thời gian</th>
                     <th>Khách hàng & SĐT</th>
                     <th>Địa chỉ giao hàng</th>
-                    <th>Tổng tiền COD</th>
-                    <th>Trạng thái</th>
+                    <th>Tổng tiền & Thanh toán</th>
+                    <th>Trạng thái đơn</th>
                     <th style="text-align:right;">Thao tác xử lý</th>
                 </tr>
             </thead>
@@ -101,8 +101,35 @@
                                 </div>
                             <?php endif; ?>
                         </td>
-                        <td class="font-bold text-primary">
-                            <?= number_format((float)$ord['total_amount'], 0, ',', '.') ?>đ
+                        <td>
+                            <div class="font-bold text-primary">
+                                <?= number_format((float)$ord['total_amount'], 0, ',', '.') ?>đ
+                            </div>
+                            <div style="font-size:0.75rem; margin-top:3px;">
+                                <?php if (($ord['payment_method'] ?? 'COD') === 'BANK_TRANSFER'): ?>
+                                    <span style="display:inline-block; padding:1px 6px; border-radius:4px; background:#e0e7ff; color:#3730a3; font-weight:600;">
+                                        💳 Chuyển khoản
+                                    </span>
+                                    <div style="margin-top:2px;">
+                                        <?php if (($ord['payment_status'] ?? 'unpaid') === 'paid'): ?>
+                                            <span style="color:#16a34a; font-weight:700;">✓ Đã nhận tiền</span>
+                                        <?php else: ?>
+                                            <span style="color:#d97706; font-weight:700;">⏳ Chưa nhận tiền</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span style="display:inline-block; padding:1px 6px; border-radius:4px; background:#f1f5f9; color:#475569; font-weight:600;">
+                                        💵 Tiền mặt COD
+                                    </span>
+                                    <div style="margin-top:2px;">
+                                        <?php if (($ord['payment_status'] ?? 'unpaid') === 'paid'): ?>
+                                            <span style="color:#16a34a; font-weight:700;">✓ Đã thu</span>
+                                        <?php else: ?>
+                                            <span style="color:#64748b;">(Thu khi giao)</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </td>
                         <td>
                             <span class="badge badge-<?= strtolower($ord['order_status']) ?>">
@@ -115,7 +142,19 @@
                             <?php endif; ?>
                         </td>
                         <td style="text-align:right;">
-                            <div class="d-flex justify-end gap-1" style="justify-content: flex-end;">
+                            <div class="d-flex justify-end gap-1" style="justify-content: flex-end; flex-wrap:wrap;">
+                                <!-- Nút xác nhận nhận tiền chuyển khoản nếu khách chọn BANK_TRANSFER và chưa paid -->
+                                <?php if (($ord['payment_method'] ?? 'COD') === 'BANK_TRANSFER' && ($ord['payment_status'] ?? 'unpaid') === 'unpaid'): ?>
+                                    <form action="<?= Response::baseUrl('staff/orders/payment-status') ?>" method="POST" style="display:inline;" onsubmit="return confirm('Xác nhận đã nhận được tiền chuyển khoản ngân hàng cho đơn <?= htmlspecialchars($ord['order_code']) ?>?');">
+                                        <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="order_id" value="<?= $ord['id'] ?>">
+                                        <input type="hidden" name="payment_status" value="paid">
+                                        <button type="submit" class="btn btn-sm btn-outline" style="color:#16a34a; border-color:#16a34a; font-weight:600;" title="Xác nhận khách đã chuyển khoản thành công">
+                                            ✓ Đã nhận CK
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+
                                 <!-- Các nút chuyển trạng thái theo đúng State Machine -->
                                 <?php if ($ord['order_status'] === 'PENDING'): ?>
                                     <!-- Xác nhận đơn -->
@@ -158,7 +197,7 @@
                                         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                                         <input type="hidden" name="order_id" value="<?= $ord['id'] ?>">
                                         <input type="hidden" name="new_status" value="DELIVERED">
-                                        <button type="submit" class="btn btn-sm btn-secondary" title="Xác nhận giao thành công và đã thu tiền COD">
+                                        <button type="submit" class="btn btn-sm btn-secondary" title="Xác nhận giao thành công">
                                             🛵 Đã giao thành công
                                         </button>
                                     </form>
@@ -282,6 +321,16 @@
                         <div><strong>Khách hàng:</strong> ${order.recipient_name} (SĐT: ${order.recipient_phone})</div>
                         <div><strong>Địa chỉ:</strong> ${order.delivery_address}</div>
                         ${order.note ? `<div><strong>Ghi chú:</strong> <em>${order.note}</em></div>` : ''}
+                        <div style="margin-top:0.4rem; padding-top:0.4rem; border-top:1px dashed #e2e8f0; display:flex; gap:1.5rem;">
+                            <div>
+                                <strong>Hình thức:</strong> 
+                                ${order.payment_method === 'BANK_TRANSFER' ? '<span style="color:#2563eb; font-weight:700;">💳 Chuyển khoản ngân hàng</span>' : '<span>💵 Tiền mặt (COD)</span>'}
+                            </div>
+                            <div>
+                                <strong>Thanh toán:</strong> 
+                                ${order.payment_status === 'paid' ? '<span style="color:#16a34a; font-weight:700;">✓ Đã thanh toán</span>' : '<span style="color:#d97706; font-weight:700;">⏳ Chưa thanh toán</span>'}
+                            </div>
+                        </div>
                     </div>
                     <table style="width:100%; border-collapse:collapse; margin-bottom:1rem; font-size:0.875rem;">
                         <thead>
@@ -292,9 +341,31 @@
                         </thead>
                         <tbody>${itemsHtml}</tbody>
                     </table>
-                    <div style="display:flex; justify-content:space-between; font-weight:800; font-size:1.1rem; color:var(--primary-color); border-top:1px dashed #ddd; padding-top:0.75rem; margin-bottom:1.5rem;">
-                        <span>Tổng tiền COD:</span>
-                        <span>${parseInt(order.total_amount).toLocaleString('vi-VN')}đ</span>
+                    <div style="border-top:1px dashed #ddd; padding-top:0.75rem; margin-bottom:1.25rem; font-size:0.875rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:3px; color:#64748b;">
+                            <span>Tạm tính tiền món:</span>
+                            <span>${parseInt(order.subtotal).toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        ${order.voucher_code && parseFloat(order.discount_amount) > 0 ? `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:3px; color:#dc2626; font-weight:600;">
+                                <span>🎟️ Voucher (${order.voucher_code}):</span>
+                                <span>-${parseInt(order.discount_amount).toLocaleString('vi-VN')}đ</span>
+                            </div>
+                        ` : ''}
+                        ${parseInt(order.points_used) > 0 ? `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:3px; color:#16a34a; font-weight:600;">
+                                <span>🎁 Điểm thưởng (${order.points_used} điểm):</span>
+                                <span>-${parseInt(order.points_discount).toLocaleString('vi-VN')}đ</span>
+                            </div>
+                        ` : ''}
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:#64748b;">
+                            <span>Phí giao hàng:</span>
+                            <span>${parseInt(order.shipping_fee).toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-weight:800; font-size:1.15rem; color:var(--primary-color); border-top:1px solid #e2e8f0; padding-top:6px;">
+                            <span>Tổng thu khách:</span>
+                            <span>${parseInt(order.total_amount).toLocaleString('vi-VN')}đ</span>
+                        </div>
                     </div>
                     <h5 style="margin-bottom:0.5rem;">Lịch Sử Chuyển Trạng Thái:</h5>
                     <div style="background:#f8fafc; padding:10px; border-radius:6px;">${historyHtml}</div>

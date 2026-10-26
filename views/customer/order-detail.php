@@ -130,7 +130,8 @@
                         <div><strong>Ghi chú:</strong> <?= htmlspecialchars($order['note']) ?></div>
                     <?php endif; ?>
                     <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed var(--border-color);">
-                        <strong>Phương thức:</strong> Tiền mặt (COD)
+                        <strong>Phương thức:</strong> 
+                        <?= (($order['payment_method'] ?? 'COD') === 'BANK_TRANSFER') ? '💳 Chuyển khoản VietQR' : '💵 Tiền mặt (COD)' ?>
                     </div>
                 </div>
             </div>
@@ -144,17 +145,110 @@
                     <span class="text-muted">Tạm tính:</span>
                     <span><?= number_format((float)$order['subtotal'], 0, ',', '.') ?>đ</span>
                 </div>
+                <?php if (!empty($order['voucher_code']) && (float)$order['discount_amount'] > 0): ?>
+                    <div class="d-flex justify-between mb-2" style="font-size:0.875rem; color:#dc2626; font-weight:600;">
+                        <span>🎟️ Mã ưu đãi (<?= htmlspecialchars($order['voucher_code']) ?>):</span>
+                        <span>-<?= number_format((float)$order['discount_amount'], 0, ',', '.') ?>đ</span>
+                    </div>
+                <?php endif; ?>
+                <?php if ((int)($order['points_used'] ?? 0) > 0): ?>
+                    <div class="d-flex justify-between mb-2" style="font-size:0.875rem; color:#16a34a; font-weight:600;">
+                        <span>🎁 Điểm tích lũy (<?= number_format((int)$order['points_used']) ?> điểm):</span>
+                        <span>-<?= number_format((float)$order['points_discount'], 0, ',', '.') ?>đ</span>
+                    </div>
+                <?php endif; ?>
                 <div class="d-flex justify-between mb-3" style="font-size:0.875rem;">
                     <span class="text-muted">Phí giao hàng:</span>
                     <span><?= number_format((float)$order['shipping_fee'], 0, ',', '.') ?>đ</span>
                 </div>
                 <div class="d-flex justify-between align-center" style="border-top:1px dashed var(--border-color); padding-top:0.75rem;">
-                    <span style="font-weight:700;">Tổng thanh toán (COD):</span>
+                    <span style="font-weight:700;">Tổng thanh toán:</span>
                     <span style="font-size:1.35rem; font-weight:800; color:var(--primary-color);">
                         <?= number_format((float)$order['total_amount'], 0, ',', '.') ?>đ
                     </span>
                 </div>
+                <?php if ((int)($order['points_earned'] ?? 0) > 0): ?>
+                    <div style="margin-top:0.75rem; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; padding:0.4rem 0.6rem; font-size:0.8rem; color:#065f46; display:flex; align-items:center; gap:0.4rem;">
+                        <span>🎁</span>
+                        <span>Tích lũy: <strong>+<?= number_format((int)$order['points_earned']) ?> điểm</strong> <?= ($order['order_status'] === 'DELIVERED') ? '(Đã cộng vào ví)' : '(Nhận sau khi giao thành công)' ?></span>
+                    </div>
+                <?php endif; ?>
+                <div style="margin-top:0.75rem; font-size:0.8125rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span class="text-muted">Hình thức:</span>
+                    <?php if (($order['payment_method'] ?? 'COD') === 'BANK_TRANSFER'): ?>
+                        <strong style="color:#2563eb;">💳 Chuyển khoản VietQR</strong>
+                    <?php else: ?>
+                        <strong>💵 Tiền mặt (COD)</strong>
+                    <?php endif; ?>
+                </div>
+                <div style="margin-top:0.5rem; font-size:0.8125rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span class="text-muted">Trạng thái tiền:</span>
+                    <?php if (($order['payment_status'] ?? 'unpaid') === 'paid'): ?>
+                        <span class="badge badge-delivered" style="font-size:0.75rem;">✓ Đã thanh toán</span>
+                    <?php else: ?>
+                        <span class="badge badge-pending" style="font-size:0.75rem;">⏳ Chưa thanh toán</span>
+                    <?php endif; ?>
+                </div>
             </div>
+
+            <!-- Khung quét mã chuyển khoản nếu chọn BANK_TRANSFER -->
+            <?php if (($order['payment_method'] ?? 'COD') === 'BANK_TRANSFER'): ?>
+                <div class="card" style="padding: 1.5rem; border: 2px solid #3b82f6; background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);">
+                    <h4 style="color:#1e3a8a; margin-bottom: 0.75rem; display:flex; align-items:center; gap:0.5rem;">
+                        <span>💳</span> Thông Tin Chuyển Khoản
+                    </h4>
+
+                    <?php if (($order['payment_status'] ?? 'unpaid') === 'paid'): ?>
+                        <div style="padding: 1rem; background: #dcfce7; border-radius: var(--radius-sm); color: #166534; font-size: 0.875rem; text-align: center; font-weight: 600;">
+                            ✓ Đơn hàng đã được xác nhận thanh toán thành công!
+                        </div>
+                    <?php else: ?>
+                        <div style="text-align: center; margin-bottom: 1rem;">
+                            <?php 
+                            $qrAmount = (int)$order['total_amount'];
+                            $qrAddInfo = urlencode($order['order_code']);
+                            $qrBankId = urlencode($banking['bank_id'] ?? 'VCB');
+                            $qrAccountNo = urlencode($banking['account_no'] ?? '');
+                            $qrAccountName = urlencode($banking['account_name'] ?? '');
+                            $qrUrl = "https://img.vietqr.io/image/{$qrBankId}-{$qrAccountNo}-compact2.png?amount={$qrAmount}&addInfo={$qrAddInfo}&accountName={$qrAccountName}";
+                            ?>
+                            <img 
+                                src="<?= $qrUrl ?>" 
+                                alt="Mã VietQR" 
+                                style="width: 170px; height: auto; border-radius: 8px; border: 1px solid #cbd5e1; background:#fff; padding:6px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);"
+                            >
+                            <div style="font-size: 0.7rem; color: #64748b; margin-top: 4px;">
+                                Quét mã bằng App Ngân hàng bất kỳ
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.8125rem; display:flex; flex-direction:column; gap:0.5rem;">
+                            <div>
+                                <span class="text-muted" style="display:block; font-size:0.7rem;">NGÂN HÀNG</span>
+                                <strong><?= htmlspecialchars($banking['bank_name'] ?? 'VietComBank') ?></strong>
+                            </div>
+                            <div>
+                                <span class="text-muted" style="display:block; font-size:0.7rem;">SỐ TÀI KHOẢN</span>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong style="color:var(--primary-color); font-family:monospace; font-size:1rem;"><?= htmlspecialchars($banking['account_no'] ?? '') ?></strong>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyDetailText('<?= htmlspecialchars($banking['account_no'] ?? '') ?>', this)" style="padding:1px 6px; font-size:0.7rem;">Chép</button>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="text-muted" style="display:block; font-size:0.7rem;">CHỦ TÀI KHOẢN</span>
+                                <strong><?= htmlspecialchars($banking['account_name'] ?? '') ?></strong>
+                            </div>
+                            <div>
+                                <span class="text-muted" style="display:block; font-size:0.7rem;">NỘI DUNG CHUYỂN TIỀN</span>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <strong style="color:#1e40af; font-family:monospace; background:#dbeafe; padding:2px 6px; border-radius:4px; font-size:0.85rem;"><?= htmlspecialchars($order['order_code']) ?></strong>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="copyDetailText('<?= htmlspecialchars($order['order_code']) ?>', this)" style="padding:1px 6px; font-size:0.7rem;">Chép</button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -185,3 +279,29 @@
         </div>
     </div>
 <?php endif; ?>
+
+<script>
+function copyDetailText(text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const old = btn.innerText;
+        btn.innerText = '✓';
+        btn.style.color = '#16a34a';
+        btn.style.borderColor = '#16a34a';
+        setTimeout(() => {
+            btn.innerText = old;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+        }, 2000);
+    }).catch(() => {
+        const input = document.createElement('input');
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        btn.innerText = '✓';
+        setTimeout(() => { btn.innerText = 'Chép'; }, 2000);
+    });
+}
+</script>

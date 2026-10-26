@@ -25,4 +25,12 @@ return [
         'currency_symbol' => 'đ',
         'code_prefix'     => 'ORD',
     ],
+
+    // Cấu hình thanh toán chuyển khoản ngân hàng & mã VietQR
+    'banking' => [
+        'bank_id'      => getenv('BANK_ID') ?: 'VCB', // MB, VCB, TCB, ACB, VPB, BIDV, ICB...
+        'bank_name'    => getenv('BANK_NAME') ?: 'VietComBank',
+        'account_no'   => getenv('BANK_ACCOUNT_NO') ?: '1036646124',
+        'account_name' => getenv('BANK_ACCOUNT_NAME') ?: 'TRAN VAN LOC',
+    ],
 ];

@@ -77,4 +77,28 @@ class StaffOrderController {
 
         Response::redirect('staff/orders');
     }
+
+    /**
+     * Cập nhật trạng thái thanh toán (ví dụ: Xác nhận đã nhận tiền chuyển khoản)
+     */
+    public function updatePaymentStatus(): void {
+        $user = AuthMiddleware::requireRole(['staff', 'admin']);
+        CsrfMiddleware::handle();
+
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        $paymentStatus = trim($_POST['payment_status'] ?? 'paid');
+        $note = trim($_POST['note'] ?? '');
+
+        try {
+            $this->orderModel->updatePaymentStatus($orderId, $paymentStatus, (int)$user['id'], $note);
+            $msg = ($paymentStatus === 'paid') 
+                ? "Đã xác nhận thanh toán thành công cho đơn hàng." 
+                : "Đã cập nhật trạng thái thanh toán.";
+            Session::flash('success', $msg);
+        } catch (Throwable $e) {
+            Session::flash('error', $e->getMessage());
+        }
+
+        Response::redirect('staff/orders');
+    }
 }

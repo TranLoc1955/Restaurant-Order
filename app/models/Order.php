@@ -85,17 +85,62 @@ class Order {
                 throw new Exception("Giá trị đơn hàng tối thiểu để đặt là " . number_format($minAmount, 0, ',', '.') . "đ.");
             }
 
-            $totalAmount = $subtotal + $shippingFee;
+            // 3. Xử lý Mã giảm giá (Voucher)
+            $voucherCode = !empty($customerData['voucher_code']) ? strtoupper(trim($customerData['voucher_code'])) : null;
+            $discountAmount = 0.00;
+            $voucherId = null;
 
-            // 3. Sinh mã đơn hàng duy nhất (Ví dụ: ORD-20261017-A8B9C1)
+            if ($voucherCode) {
+                $voucherModel = new Voucher();
+                $validation = $voucherModel->validateVoucher($voucherCode, $userId, $subtotal);
+                if (!$validation['valid']) {
+                    throw new Exception($validation['message']);
+                }
+                $discountAmount = (float)$validation['discount'];
+                $voucherId = (int)$validation['voucher']['id'];
+                $voucherCode = $validation['voucher']['code'];
+            }
+
+            // 4. Xử lý Dùng Điểm Thưởng (1 điểm = 1.000đ)
+            $pointsRequested = isset($customerData['points_used']) ? (int)$customerData['points_used'] : 0;
+            $pointsUsed = 0;
+            $pointsDiscount = 0.00;
+
+            if ($pointsRequested > 0) {
+                $userModel = new User();
+                $availablePoints = $userModel->getRewardPoints($userId);
+
+                if ($pointsRequested > $availablePoints) {
+                    throw new Exception("Bạn hiện có {$availablePoints} điểm tích lũy, không đủ {$pointsRequested} điểm yêu cầu.");
+                }
+
+                // Điểm chỉ được giảm tối đa trên số tiền còn lại sau voucher
+                $remainingSubtotal = max(0.00, $subtotal - $discountAmount);
+                $maxPointsAllowed = (int)floor($remainingSubtotal / 1000.0);
+                $pointsUsed = min($pointsRequested, $maxPointsAllowed);
+                $pointsDiscount = $pointsUsed * 1000.00;
+            }
+
+            // 5. Tính tổng thanh toán cuối cùng
+            $finalFoodTotal = max(0.00, $subtotal - $discountAmount - $pointsDiscount);
+            $totalAmount = $finalFoodTotal + $shippingFee;
+
+            // Tính số điểm thưởng sẽ nhận được khi đơn giao thành công (10.000đ = 1 điểm)
+            $pointsEarned = (int)floor($totalAmount / 10000.0);
+
+            // 6. Sinh mã đơn hàng duy nhất (Ví dụ: ORD-20261017-A8B9C1)
             $orderCode = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
 
-            // 4. Lưu bảng orders
+            // 7. Lưu bảng orders
+            $paymentMethod = ($customerData['payment_method'] ?? 'COD') === 'BANK_TRANSFER' ? 'BANK_TRANSFER' : 'COD';
+
             $orderStmt = $this->db->prepare("
                 INSERT INTO orders (
                     order_code, user_id, recipient_name, recipient_phone, delivery_address,
-                    note, subtotal, shipping_fee, total_amount, payment_method, payment_status, order_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'COD', 'unpaid', 'PENDING')
+                    note, subtotal, shipping_fee, total_amount, payment_method, payment_status,
+                    voucher_code, discount_amount, points_used, points_discount, points_earned,
+                    order_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?, ?, ?, ?, ?, 'PENDING')
             ");
 
             $orderStmt->execute([
@@ -108,11 +153,33 @@ class Order {
                 $subtotal,
                 $shippingFee,
                 $totalAmount,
+                $paymentMethod,
+                $voucherCode,
+                $discountAmount,
+                $pointsUsed,
+                $pointsDiscount,
+                $pointsEarned,
             ]);
 
             $orderId = (int)$this->db->lastInsertId();
 
-            // 5. Lưu bảng order_items
+            // 8. Ghi nhận lượt dùng Voucher
+            if ($voucherId && $discountAmount > 0) {
+                (new Voucher())->recordUsage($voucherId, $orderId, $userId, $discountAmount, $this->db);
+            }
+
+            // 9. Trừ điểm thưởng của khách hàng ngay khi đặt đơn
+            if ($pointsUsed > 0) {
+                (new User())->deductPoints(
+                    $userId,
+                    $pointsUsed,
+                    "Dùng {$pointsUsed} điểm giảm " . number_format($pointsDiscount, 0, ',', '.') . "đ cho đơn {$orderCode}",
+                    $orderId,
+                    $this->db
+                );
+            }
+
+            // 10. Lưu bảng order_items
             $itemStmt = $this->db->prepare("
                 INSERT INTO order_items (
                     order_id, product_id, product_name_snapshot, unit_price, quantity, line_total
@@ -130,21 +197,36 @@ class Order {
                 ]);
             }
 
-            // 6. Ghi nhật ký trạng thái đầu tiên
+            // 11. Ghi nhật ký trạng thái đầu tiên
+            $methodNote = ($paymentMethod === 'BANK_TRANSFER')
+                ? 'Khách hàng tạo đơn mới (Thanh toán: Chuyển khoản ngân hàng VietQR)'
+                : 'Khách hàng tạo đơn mới (Thanh toán: Tiền mặt khi nhận hàng COD)';
+
+            if ($voucherCode) {
+                $methodNote .= " | Voucher: {$voucherCode} (-" . number_format($discountAmount, 0, ',', '.') . "đ)";
+            }
+            if ($pointsUsed > 0) {
+                $methodNote .= " | Tích điểm: -{$pointsUsed} điểm (-" . number_format($pointsDiscount, 0, ',', '.') . "đ)";
+            }
+
             $historyStmt = $this->db->prepare("
                 INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, note)
-                VALUES (?, NULL, 'PENDING', ?, 'Khách hàng tạo đơn hàng COD mới')
+                VALUES (?, NULL, 'PENDING', ?, ?)
             ");
-            $historyStmt->execute([$orderId, $userId]);
+            $historyStmt->execute([$orderId, $userId, $methodNote]);
 
             $this->db->commit();
 
             return [
-                'id'           => $orderId,
-                'order_code'   => $orderCode,
-                'total_amount' => $totalAmount,
-                'subtotal'     => $subtotal,
-                'shipping_fee' => $shippingFee,
+                'id'              => $orderId,
+                'order_code'      => $orderCode,
+                'total_amount'    => $totalAmount,
+                'subtotal'        => $subtotal,
+                'shipping_fee'    => $shippingFee,
+                'discount_amount' => $discountAmount,
+                'points_used'     => $pointsUsed,
+                'points_discount' => $pointsDiscount,
+                'points_earned'   => $pointsEarned,
             ];
         } catch (Throwable $e) {
             $this->db->rollBack();
@@ -319,6 +401,84 @@ class Order {
                 $newStatus,
                 $changedByUserId,
                 $historyNote
+            ]);
+
+            // Nếu đơn chuyển sang DELIVERED -> Tích điểm thưởng cho khách hàng
+            if ($newStatus === 'DELIVERED') {
+                $pointsEarned = (int)($order['points_earned'] ?? 0);
+                if ($pointsEarned > 0) {
+                    (new User())->addPoints(
+                        (int)$order['user_id'],
+                        $pointsEarned,
+                        'EARN',
+                        "Tích {$pointsEarned} điểm từ đơn hàng {$order['order_code']} giao thành công",
+                        $orderId,
+                        $this->db
+                    );
+                }
+            }
+
+            // Nếu đơn bị CANCELLED hoặc REJECTED -> Hoàn lại điểm đã dùng và lượt dùng voucher
+            if (in_array($newStatus, ['CANCELLED', 'REJECTED'], true)) {
+                $pointsUsed = (int)($order['points_used'] ?? 0);
+                if ($pointsUsed > 0) {
+                    $actionText = ($newStatus === 'CANCELLED') ? 'hủy' : 'bị từ chối';
+                    (new User())->addPoints(
+                        (int)$order['user_id'],
+                        $pointsUsed,
+                        'REFUND',
+                        "Hoàn lại {$pointsUsed} điểm do đơn hàng {$order['order_code']} {$actionText}",
+                        $orderId,
+                        $this->db
+                    );
+                }
+
+                if (!empty($order['voucher_code'])) {
+                    (new Voucher())->revertUsage($orderId, $this->db);
+                }
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Cập nhật trạng thái thanh toán (unpaid -> paid) bởi Staff hoặc Admin
+     */
+    public function updatePaymentStatus(int $orderId, string $newPaymentStatus, int $changedByUserId, ?string $note = null): bool {
+        if (!in_array($newPaymentStatus, ['unpaid', 'paid'], true)) {
+            throw new Exception("Trạng thái thanh toán không hợp lệ.");
+        }
+
+        $order = $this->findById($orderId);
+        if (!$order) {
+            throw new Exception("Đơn hàng không tồn tại.");
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $updateStmt = $this->db->prepare("UPDATE orders SET payment_status = ? WHERE id = ?");
+            $updateStmt->execute([$newPaymentStatus, $orderId]);
+
+            $logNote = $note ?: ($newPaymentStatus === 'paid' 
+                ? 'Nhân viên đã xác nhận nhận tiền chuyển khoản thành công' 
+                : 'Đã đổi trạng thái thanh toán về Chưa thanh toán');
+
+            $historyStmt = $this->db->prepare("
+                INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, note)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $historyStmt->execute([
+                $orderId,
+                $order['order_status'],
+                $order['order_status'],
+                $changedByUserId,
+                $logNote
             ]);
 
             $this->db->commit();

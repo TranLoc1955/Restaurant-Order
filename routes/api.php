@@ -23,3 +23,6 @@ Router::get('/api/staff/orders/{id}', [StaffOrderController::class, 'detail']);
 Router::post('/api/chatbot/message', [ChatbotController::class, 'message']);
 Router::get('/api/chatbot/history', [ChatbotController::class, 'history']);
 Router::post('/api/chatbot/clear', [ChatbotController::class, 'clear']);
+
+// Voucher & Khuyến mãi
+Router::post('/api/voucher/validate', [OrderController::class, 'apiValidateVoucher']);

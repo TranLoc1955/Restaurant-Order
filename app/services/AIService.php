@@ -207,9 +207,19 @@ THÔNG TIN CHÍNH THỨC CỦA NHÀ HÀNG:
 - Địa chỉ: {$settings['address']}
 - Hotline tư vấn / hỗ trợ: {$settings['phone']}
 - Giờ mở cửa phục vụ: {$settings['opening_hours']}
-- Phí giao hàng tận nơi (COD): " . number_format((float)$settings['delivery_fee'], 0, ',', '.') . "đ cho mỗi đơn.
+- Phí giao hàng tận nơi: " . number_format((float)$settings['delivery_fee'], 0, ',', '.') . "đ cho mỗi đơn.
 - Đơn hàng tối thiểu: " . number_format((float)$settings['minimum_order_amount'], 0, ',', '.') . "đ.
-- Phương thức thanh toán: Tiền mặt khi nhận hàng (COD).
+- Phương thức thanh toán: Nhà hàng hỗ trợ 2 hình thức:
+  + Tiền mặt khi nhận hàng (COD)
+  + Chuyển khoản qua tài khoản ngân hàng (Quét mã VietQR tiện lợi). Thông tin chuyển khoản: Ngân hàng " . ($this->appConfig['banking']['bank_name'] ?? 'VietComBank') . ", Số tài khoản: " . ($this->appConfig['banking']['account_no'] ?? '1036646124') . ", Chủ tài khoản: " . ($this->appConfig['banking']['account_name'] ?? 'TRAN VAN LOC') . ", nội dung là Mã đơn hàng.
+- CHƯƠNG TRÌNH KHUYẾN MÃI & MÃ GIẢM GIÁ (VOUCHER):
+  + TRIANKHACHCU: Giảm 30.000đ dành riêng cho khách hàng thân thiết từng đặt món thành công tại nhà hàng (đơn từ 120.000đ).
+  + BANMOI20K: Giảm 20.000đ cho đơn hàng đầu tiên của khách hàng mới (đơn từ 80.000đ).
+  + GIAM10: Giảm 10% (tối đa 50.000đ) cho đơn tiệc từ 150.000đ.
+  + FREESHIP: Giảm ngay 20.000đ phí giao hàng cho đơn từ 100.000đ.
+- CHƯƠNG TRÌNH KHÁCH HÀNG THÂN THIẾT & TÍCH ĐIỂM:
+  + Tích lũy tự động: Cứ mỗi 10.000đ chi tiêu = 1 điểm thưởng (được cộng vào tài khoản khi đơn hàng giao thành công).
+  + Đổi thưởng: 1 điểm = 1.000đ giảm giá trực tiếp vào đơn hàng khi đặt món tại trang thanh toán.
 
 DANH SÁCH TOÀN BỘ MÓN ĂN ĐANG BÁN TẠI NHÀ HÀNG:
 {$menuListText}
@@ -360,20 +370,30 @@ CÁC NGUYÊN TẮC BẮT BUỘC KHI TƯ VẤN:
             return "Dạ, nhà hàng mở cửa phục vụ từ <strong>{$settings['opening_hours']}</strong> hằng ngày ạ! Bạn có thể đặt món trực tiếp trên website để được giao tận nơi.";
         }
 
-        // 4. Phí ship, giao hàng, COD
+        // 4. Phí ship, giao hàng
         if (str_contains($lower, 'phí ship') || str_contains($lower, 'phí giao hàng') || str_contains($lower, 'giao hàng bao nhiêu') || str_contains($lower, 'tiền ship')) {
             $fee = number_format((float)$settings['delivery_fee'], 0, ',', '.');
             $min = number_format((float)$settings['minimum_order_amount'], 0, ',', '.');
-            return "Phí giao hàng tận nơi của nhà hàng là <strong>{$fee}đ</strong> cho mỗi đơn hàng (đơn tối thiểu từ <strong>{$min}đ</strong>) và áp dụng phương thức thanh toán tiền mặt (COD) khi nhận hàng ạ.";
+            return "Phí giao hàng tận nơi của nhà hàng là <strong>{$fee}đ</strong> cho mỗi đơn hàng (đơn tối thiểu từ <strong>{$min}đ</strong>). Bạn có thể chọn thanh toán tiền mặt (COD) hoặc chuyển khoản ngân hàng qua mã VietQR ạ!";
         }
 
-        // 5. Hướng dẫn đặt hàng / thanh toán
-        if (str_contains($lower, 'đặt hàng') || str_contains($lower, 'cách đặt') || str_contains($lower, 'thanh toán') || str_contains($lower, 'order')) {
-            return "Để đặt món rất tiện lợi:\n"
-                 . "1. Bạn bấm vào mục **Thực đơn** trên menu.\n"
-                 . "2. Chọn món ăn và nhấn **+ Thêm** vào giỏ.\n"
-                 . "3. Vào **Giỏ hàng** bấm **Tiến hành đặt hàng** và điền địa chỉ giao.\n"
-                 . "4. Shipper sẽ giao món tận tay và nhận tiền mặt (COD) ạ!";
+        // 5. Hướng dẫn đặt hàng / thanh toán / chuyển khoản ngân hàng
+        if (str_contains($lower, 'đặt hàng') || str_contains($lower, 'cách đặt') || str_contains($lower, 'thanh toán') || str_contains($lower, 'chuyển khoản') || str_contains($lower, 'số tài khoản') || str_contains($lower, 'stk') || str_contains($lower, 'ngân hàng') || str_contains($lower, 'vietqr') || str_contains($lower, 'order')) {
+            $banking = $this->appConfig['banking'] ?? [
+                'bank_id'      => 'VCB',
+                'bank_name'    => 'VietComBank',
+                'account_no'   => '1036646124',
+                'account_name' => 'TRAN VAN LOC'
+            ];
+
+            return "Nhà Hàng Trần Lộc hỗ trợ 2 hình thức thanh toán thuận tiện:\n\n"
+                 . "1. 💵 **Thanh toán tiền mặt khi nhận hàng (COD)**: Nhận món ăn nóng hổi và gửi tiền trực tiếp cho shipper.\n"
+                 . "2. 💳 **Chuyển khoản trực tuyến qua tài khoản (VietQR)**: Quét mã QR tiện lợi qua mọi app ngân hàng (MB, Vietcombank, Techcombank, MoMo...).\n\n"
+                 . "🏦 **Thông tin tài khoản nhà hàng**:\n"
+                 . "• Ngân hàng: <strong>{$banking['bank_name']}</strong>\n"
+                 . "• Số tài khoản: <strong>{$banking['account_no']}</strong>\n"
+                 . "• Chủ tài khoản: <strong>{$banking['account_name']}</strong>\n"
+                 . "• Nội dung chuyển tiền: Ghi rõ **Mã đơn hàng** (Ví dụ: ORD-...) để hệ thống xử lý ngay nhé!";
         }
 
         // 6. Theo dõi đơn hàng
@@ -381,7 +401,20 @@ CÁC NGUYÊN TẮC BẮT BUỘC KHI TƯ VẤN:
             return "Để theo dõi đơn hàng, bạn chỉ cần đăng nhập tài khoản và bấm vào mục **'Đơn của tôi'** trên thanh điều hướng để xem chi tiết tiến trình đầu bếp nấu và shipper giao hàng thời gian thực nhé!";
         }
 
-        // 7. Hỏi về ngân sách (Ví dụ: "dưới 50k", "dưới 100k", "< 70.000")
+        // 7. Hỏi về Khuyến mãi, Mã giảm giá (Voucher) và Tích điểm
+        if (str_contains($lower, 'voucher') || str_contains($lower, 'mã giảm giá') || str_contains($lower, 'khuyến mãi') || str_contains($lower, 'ưu đãi') || str_contains($lower, 'giảm giá') || str_contains($lower, 'tích điểm') || str_contains($lower, 'điểm thưởng') || str_contains($lower, 'tri ân')) {
+            return "🎁 **Chương trình Ưu Đãi & Tích Điểm tại Nhà Hàng:**\n\n"
+                 . "1. ⭐️ **Mã 'TRIANKHACHCU'**: Giảm **30.000đ** dành riêng cho khách hàng thân thiết từng đặt món thành công (đơn từ 120.000đ).\n"
+                 . "2. ✨ **Mã 'BANMOI20K'**: Giảm ngay **20.000đ** cho đơn đặt đầu tiên của bạn mới (đơn từ 80.000đ).\n"
+                 . "3. 🎉 **Mã 'GIAM10'**: Giảm **10%** (tối đa 50.000đ) cho đơn từ 150.000đ.\n"
+                 . "4. 🚚 **Mã 'FREESHIP'**: Giảm **20.000đ** phí vận chuyển cho đơn từ 100.000đ.\n\n"
+                 . "🌟 **Chính sách Tích Điểm Thành Viên**:\n"
+                 . "• Mỗi **10.000đ** chi tiêu tích lũy ngay **1 điểm thưởng**.\n"
+                 . "• Khi đặt món, **1 điểm = 1.000đ** giảm giá trực tiếp vào đơn hàng tại trang thanh toán!\n\n"
+                 . "Bạn có thể nhập hoặc chọn trực tiếp các mã ưu đãi này khi bấm vào trang Đặt hàng nhé!";
+        }
+
+        // 8. Hỏi về ngân sách (Ví dụ: "dưới 50k", "dưới 100k", "< 70.000")
         $budgetLimit = null;
         if (preg_match('/dưới\s*([0-9]+)\s*(k|nghìn|ngàn|000)/ui', $lower, $matches)) {
             $num = (int)$matches[1];

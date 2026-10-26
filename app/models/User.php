@@ -25,7 +25,7 @@ class User {
      * Tìm người dùng theo ID
      */
     public function findById(int $id): ?array {
-        $stmt = $this->db->prepare("SELECT id, full_name, email, phone, role, status, created_at FROM users WHERE id = ? LIMIT 1");
+        $stmt = $this->db->prepare("SELECT id, full_name, email, phone, role, reward_points, status, created_at FROM users WHERE id = ? LIMIT 1");
         $stmt->execute([$id]);
         $user = $stmt->fetch();
         return $user ?: null;
@@ -224,5 +224,66 @@ class User {
                 'message' => "Đã xóa vĩnh viễn tài khoản '{$targetUser['full_name']}' khỏi hệ thống thành công."
             ];
         }
+    }
+
+    /**
+     * Lấy số điểm tích lũy hiện tại của người dùng
+     */
+    public function getRewardPoints(int $userId): int {
+        $stmt = $this->db->prepare("SELECT reward_points FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Lấy lịch sử biến động điểm thưởng của người dùng
+     */
+    public function getPointTransactions(int $userId, int $limit = 20): array {
+        $stmt = $this->db->prepare("
+            SELECT pt.*, o.order_code
+            FROM point_transactions pt
+            LEFT JOIN orders o ON pt.order_id = o.id
+            WHERE pt.user_id = ?
+            ORDER BY pt.created_at DESC
+            LIMIT ?
+        ");
+        $stmt->bindValue(1, $userId, PDO::PARAM_INT);
+        $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Cộng điểm thưởng và ghi nhật ký giao dịch
+     */
+    public function addPoints(int $userId, int $points, string $type, string $description, ?int $orderId = null, ?PDO $pdo = null): bool {
+        if ($points <= 0) return true;
+        $db = $pdo ?: $this->db;
+
+        $stmt = $db->prepare("UPDATE users SET reward_points = reward_points + ? WHERE id = ?");
+        $stmt->execute([$points, $userId]);
+
+        $log = $db->prepare("
+            INSERT INTO point_transactions (user_id, order_id, points, type, description)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        return $log->execute([$userId, $orderId, $points, $type, $description]);
+    }
+
+    /**
+     * Trừ điểm thưởng và ghi nhật ký giao dịch
+     */
+    public function deductPoints(int $userId, int $points, string $description, ?int $orderId = null, ?PDO $pdo = null): bool {
+        if ($points <= 0) return true;
+        $db = $pdo ?: $this->db;
+
+        $stmt = $db->prepare("UPDATE users SET reward_points = GREATEST(0, CAST(reward_points AS SIGNED) - ?) WHERE id = ?");
+        $stmt->execute([$points, $userId]);
+
+        $log = $db->prepare("
+            INSERT INTO point_transactions (user_id, order_id, points, type, description)
+            VALUES (?, ?, ?, 'REDEEM', ?)
+        ");
+        return $log->execute([$userId, $orderId, -$points, $description]);
     }
 }

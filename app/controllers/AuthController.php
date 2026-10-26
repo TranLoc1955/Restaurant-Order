@@ -76,11 +76,12 @@ class AuthController {
         // Đăng nhập thành công -> Đổi session ID chống Session Fixation
         Session::regenerate();
         Session::set('user', [
-            'id'        => (int)$user['id'],
-            'full_name' => $user['full_name'],
-            'email'     => $user['email'],
-            'phone'     => $user['phone'],
-            'role'      => $user['role'],
+            'id'            => (int)$user['id'],
+            'full_name'     => $user['full_name'],
+            'email'         => $user['email'],
+            'phone'         => $user['phone'],
+            'role'          => $user['role'],
+            'reward_points' => (int)($user['reward_points'] ?? 0),
         ]);
 
         Session::flash('success', "Đăng nhập thành công! Chào mừng {$user['full_name']}.");
@@ -164,11 +165,12 @@ class AuthController {
         // Đăng nhập tự động sau khi đăng ký
         Session::regenerate();
         Session::set('user', [
-            'id'        => $newUserId,
-            'full_name' => $fullName,
-            'email'     => $email,
-            'phone'     => $phone,
-            'role'      => 'customer',
+            'id'            => $newUserId,
+            'full_name'     => $fullName,
+            'email'         => $email,
+            'phone'         => $phone,
+            'role'          => 'customer',
+            'reward_points' => 0,
         ]);
 
         Session::flash('success', "Đăng ký tài khoản thành công! Chào mừng {$fullName}.");
@@ -227,9 +229,10 @@ class AuthController {
         $userData = [
             'id'        => (int)$user['id'],
             'full_name' => $user['full_name'],
-            'email'     => $user['email'],
-            'phone'     => $user['phone'],
-            'role'      => $user['role'],
+            'email'         => $user['email'],
+            'phone'         => $user['phone'],
+            'role'          => $user['role'],
+            'reward_points' => (int)($user['reward_points'] ?? 0),
         ];
         Session::set('user', $userData);
 

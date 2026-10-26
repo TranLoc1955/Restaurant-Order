@@ -40,6 +40,7 @@ class OrderController {
         }
 
         $total = $subtotal + $shippingFee;
+        $banking = $this->getBankingConfig();
 
         Response::view('customer.checkout', [
             'pageTitle'   => 'Thanh toán & Đặt hàng - Nhà Hàng Trần Lộc',
@@ -49,12 +50,13 @@ class OrderController {
             'shippingFee' => $shippingFee,
             'total'       => $total,
             'settings'    => $settings,
+            'banking'     => $banking,
             'csrfToken'   => Session::csrfToken()
         ], 'main');
     }
 
     /**
-     * Xử lý gửi đơn hàng COD
+     * Xử lý gửi đơn hàng (COD hoặc Chuyển khoản ngân hàng)
      */
     public function processCheckout(): void {
         $user = AuthMiddleware::requireLogin();
@@ -64,6 +66,10 @@ class OrderController {
         $recipientPhone = trim($_POST['recipient_phone'] ?? '');
         $deliveryAddress = trim($_POST['delivery_address'] ?? '');
         $note = trim($_POST['note'] ?? '');
+        $paymentMethod = trim($_POST['payment_method'] ?? 'COD');
+        if (!in_array($paymentMethod, ['COD', 'BANK_TRANSFER'], true)) {
+            $paymentMethod = 'COD';
+        }
 
         $validator = Validator::make($_POST)
             ->required('recipient_name', 'Họ tên người nhận')
@@ -92,12 +98,17 @@ class OrderController {
                 'recipient_phone'  => $recipientPhone,
                 'delivery_address' => $deliveryAddress,
                 'note'             => $note,
+                'payment_method'   => $paymentMethod,
             ], $items, (int)$user['id']);
 
             // Xóa sạch giỏ hàng sau khi tạo đơn thành công
             $this->cartService->clear();
 
-            Session::flash('success', "Đặt hàng thành công! Mã đơn của bạn là {$result['order_code']}.");
+            if ($paymentMethod === 'BANK_TRANSFER') {
+                Session::flash('success', "Đặt hàng thành công! Vui lòng quét mã QR hoặc chuyển khoản để nhà hàng chuẩn bị món ngay nhé.");
+            } else {
+                Session::flash('success', "Đặt hàng thành công! Mã đơn của bạn là {$result['order_code']}.");
+            }
             Response::redirect('order-success/' . $result['order_code']);
         } catch (Throwable $e) {
             Session::flash('error', "Không thể tạo đơn hàng: " . $e->getMessage());
@@ -123,12 +134,14 @@ class OrderController {
 
         $items = $this->orderModel->getOrderItems((int)$order['id']);
         $settings = $this->settingModel->getSettings();
+        $banking = $this->getBankingConfig();
 
         Response::view('customer.order-success', [
             'pageTitle' => 'Đặt hàng thành công - ' . $order['order_code'],
             'order'     => $order,
             'items'     => $items,
             'settings'  => $settings,
+            'banking'   => $banking,
         ], 'main');
     }
 
@@ -165,6 +178,7 @@ class OrderController {
         $items = $this->orderModel->getOrderItems((int)$order['id']);
         $history = $this->orderModel->getOrderStatusHistory((int)$order['id']);
         $settings = $this->settingModel->getSettings();
+        $banking = $this->getBankingConfig();
 
         Response::view('customer.order-detail', [
             'pageTitle' => 'Chi tiết đơn hàng ' . $order['order_code'],
@@ -172,8 +186,22 @@ class OrderController {
             'items'     => $items,
             'history'   => $history,
             'settings'  => $settings,
+            'banking'   => $banking,
             'csrfToken' => Session::csrfToken()
         ], 'main');
+    }
+
+    /**
+     * Lấy cấu hình tài khoản ngân hàng chuyển khoản
+     */
+    private function getBankingConfig(): array {
+        $config = require dirname(__DIR__, 2) . '/config/app.php';
+        return $config['banking'] ?? [
+            'bank_id'      => 'VCB',
+            'bank_name'    => 'VietComBank',
+            'account_no'   => '1036646124',
+            'account_name' => 'TRAN VAN LOC',
+        ];
     }
 
     /**

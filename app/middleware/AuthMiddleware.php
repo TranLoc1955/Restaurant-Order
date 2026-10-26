@@ -31,7 +31,7 @@ class AuthMiddleware {
 
         // Kiểm tra xem tài khoản có bị khóa không (truy vấn DB thời gian thực để chống trường hợp bị khóa sau khi login)
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, status, role FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT id, status, role, reward_points FROM users WHERE id = ?");
         $stmt->execute([$user['id']]);
         $dbUser = $stmt->fetch();
 
@@ -49,11 +49,10 @@ class AuthMiddleware {
             return null;
         }
 
-        // Cập nhật lại role mới nhất nếu có thay đổi
-        if ($dbUser['role'] !== $user['role']) {
-            $user['role'] = $dbUser['role'];
-            Session::set('user', $user);
-        }
+        // Cập nhật lại role và điểm thưởng mới nhất trong session
+        $user['role'] = $dbUser['role'];
+        $user['reward_points'] = (int)($dbUser['reward_points'] ?? 0);
+        Session::set('user', $user);
 
         return $user;
     }

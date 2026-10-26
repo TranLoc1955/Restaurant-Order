@@ -39,6 +39,7 @@ Router::post('/logout', [AuthController::class, 'logout']);
 // ==========================================
 Router::get('/staff/orders', [StaffOrderController::class, 'index']);
 Router::post('/staff/orders/status', [StaffOrderController::class, 'updateStatus']);
+Router::post('/staff/orders/payment-status', [StaffOrderController::class, 'updatePaymentStatus']);
 
 // ==========================================
 // 4. KHU VỰC QUẢN TRỊ VIÊN (Admin)
@@ -65,6 +66,12 @@ Router::post('/admin/users/create-staff', [AdminUserController::class, 'createSt
 Router::post('/admin/users/{id}/update', [AdminUserController::class, 'update']);
 Router::post('/admin/users/{id}/delete', [AdminUserController::class, 'delete']);
 Router::post('/admin/users/{id}/toggle-lock', [AdminUserController::class, 'toggleLock']);
+
+// Quản lý mã giảm giá & Voucher
+Router::get('/admin/vouchers', [AdminVoucherController::class, 'index']);
+Router::post('/admin/vouchers', [AdminVoucherController::class, 'store']);
+Router::post('/admin/vouchers/{id}/toggle', [AdminVoucherController::class, 'toggleStatus']);
+Router::post('/admin/vouchers/{id}/delete', [AdminVoucherController::class, 'delete']);
 
 // Cài đặt nhà hàng
 Router::get('/admin/settings', [AdminSettingController::class, 'index']);

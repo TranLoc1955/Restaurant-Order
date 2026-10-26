@@ -64,5 +64,9 @@ try {
     Router::dispatch();
 } catch (Throwable $e) {
     error_log("Unhandled Exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-    Response::abort(500, "Đã xảy ra lỗi máy chủ nội bộ. Vui lòng thử lại sau.");
+    $isDev = (getenv('APP_ENV') ?: 'development') === 'development';
+    $message = $isDev 
+        ? "Chi tiết lỗi (Development): " . $e->getMessage()
+        : "Đã xảy ra lỗi máy chủ nội bộ. Vui lòng thử lại sau.";
+    Response::abort(500, $message);
 }

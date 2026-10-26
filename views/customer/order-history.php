@@ -20,7 +20,7 @@
                         <th>Ngày đặt</th>
                         <th>Người nhận</th>
                         <th>Số lượng</th>
-                        <th>Tổng tiền (COD)</th>
+                        <th>Tổng tiền & Thanh toán</th>
                         <th>Trạng thái đơn</th>
                         <th style="text-align:right;">Thao tác</th>
                     </tr>
@@ -52,8 +52,22 @@
                                 <div style="font-size:0.75rem; color:var(--text-muted);"><?= htmlspecialchars($ord['recipient_phone']) ?></div>
                             </td>
                             <td><?= (int)$ord['total_items'] ?> món</td>
-                            <td class="font-bold text-primary">
-                                <?= number_format((float)$ord['total_amount'], 0, ',', '.') ?>đ
+                            <td>
+                                <div class="font-bold text-primary">
+                                    <?= number_format((float)$ord['total_amount'], 0, ',', '.') ?>đ
+                                </div>
+                                <div style="font-size:0.75rem; margin-top:2px;">
+                                    <?php if (($ord['payment_method'] ?? 'COD') === 'BANK_TRANSFER'): ?>
+                                        <span style="color:#2563eb; font-weight:600;">💳 Chuyển khoản</span>
+                                        <?php if (($ord['payment_status'] ?? 'unpaid') === 'paid'): ?>
+                                            <span style="color:#16a34a; font-weight:700;">(Đã CK)</span>
+                                        <?php else: ?>
+                                            <span style="color:#d97706; font-weight:700;">(Chưa CK)</span>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">💵 COD</span>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                             <td>
                                 <span class="badge badge-<?= strtolower($ord['order_status']) ?>">

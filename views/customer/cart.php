@@ -110,7 +110,7 @@
 
                 <?php if ($subtotal >= $minAmount): ?>
                     <a href="<?= Response::baseUrl('checkout') ?>" class="btn btn-primary btn-block btn-lg" id="btn-proceed-checkout">
-                        🛵 Tiến hành đặt hàng (COD)
+                        🛵 Tiến hành đặt hàng &rarr;
                     </a>
                 <?php else: ?>
                     <button type="button" class="btn btn-primary btn-block btn-lg" disabled title="Chưa đạt mức tối thiểu">

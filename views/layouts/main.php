@@ -47,6 +47,9 @@
                         <a href="<?= Response::baseUrl('admin/users') ?>" class="btn btn-sm btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.4); padding: 0.25rem 0.65rem; font-size: 0.75rem;">
                             👥 Người dùng
                         </a>
+                        <a href="<?= Response::baseUrl('admin/vouchers') ?>" class="btn btn-sm btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.4); padding: 0.25rem 0.65rem; font-size: 0.75rem;">
+                            🎟️ Vouchers
+                        </a>
                         <a href="<?= Response::baseUrl('admin/settings') ?>" class="btn btn-sm btn-outline" style="color: #ffffff; border-color: rgba(255,255,255,0.4); padding: 0.25rem 0.65rem; font-size: 0.75rem;">
                             ⚙️ Cài đặt
                         </a>
@@ -78,6 +81,7 @@
                     <a href="<?= Response::baseUrl('staff/orders') ?>" class="nav-link">📦 Quản lý Đơn hàng</a>
                     <a href="<?= Response::baseUrl('admin/products') ?>" class="nav-link">🍽️ Quản lý Món ăn</a>
                     <a href="<?= Response::baseUrl('admin/categories') ?>" class="nav-link">📁 Danh mục</a>
+                    <a href="<?= Response::baseUrl('admin/vouchers') ?>" class="nav-link">🎟️ Mã giảm giá</a>
                     <a href="<?= Response::baseUrl('admin/users') ?>" class="nav-link">👥 Người dùng</a>
                     <a href="<?= Response::baseUrl('admin/settings') ?>" class="nav-link">⚙️ Cài đặt</a>
                     <a href="<?= Response::baseUrl('menu') ?>" class="nav-link">🌐 Xem Menu Khách</a>
@@ -116,6 +120,13 @@
                 <?php if (Session::isLoggedIn()): ?>
                     <?php $user = Session::user(); ?>
                     <div class="d-flex align-center gap-1">
+                        <?php if (($user['role'] ?? 'customer') === 'customer'): ?>
+                            <a href="<?= Response::baseUrl('orders') ?>" style="text-decoration:none;" title="Điểm tích lũy của bạn. 1 điểm = 1.000đ khi đặt món!">
+                                <span style="display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#15803d; font-weight:700; font-size:0.8125rem; padding:4px 10px; border-radius:20px; border:1px solid #86efac; cursor:pointer;">
+                                    <span>🎁</span> <?= number_format((int)($user['reward_points'] ?? 0), 0, ',', '.') ?> điểm
+                                </span>
+                            </a>
+                        <?php endif; ?>
                         <span class="user-menu-btn">
                             <span><?= ($user['role'] === 'admin') ? '👑' : (($user['role'] === 'staff') ? '🧑‍🍳' : '👤') ?></span>
                             <span><?= htmlspecialchars($user['full_name']) ?></span>
